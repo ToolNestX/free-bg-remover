@@ -14,9 +14,12 @@
   input[type=file] { margin:16px 0; }
   button { background:#dc2626; color:#fff; border:none; padding:12px 20px; border-radius:8px; font-size:16px; margin:6px; cursor:pointer; }
   button:disabled { background:#9ca3af; }
-  img { max-width:100%; border-radius:8px; margin-top:12px; background:
-    repeating-conic-gradient(#e5e7eb 0% 25%, #ffffff 0% 50%) 50% / 20px 20px; }
-  #status { margin-top:10px; font-size:14px; color:#6b7280; word-break:break-word; }
+  img.preview { max-width:100%; max-height:220px; border-radius:8px; margin-top:12px; }
+  .checkerboard { background: repeating-conic-gradient(#e5e7eb 0% 25%, #ffffff 0% 50%) 50% / 20px 20px; }
+  #status { margin-top:10px; font-size:15px; color:#374151; }
+  #scissors { font-size:26px; display:none; }
+  .progress-wrap { width:100%; background:#e5e7eb; border-radius:20px; height:14px; margin-top:10px; overflow:hidden; display:none; }
+  .progress-bar { height:100%; background:#dc2626; width:0%; transition:width 0.2s; }
   footer { text-align:center; padding:16px; font-size:13px; color:#6b7280; }
 </style>
 </head>
@@ -31,12 +34,18 @@
   <div class="box">
     <input type="file" id="fileInput" accept="image/*" disabled>
     <br>
+    <img id="previewImg" class="preview" style="display:none;">
+    <br>
     <button id="removeBtn" disabled>Remove Background</button>
+    <div id="scissors">✂️</div>
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
     <div id="status">Loading, please wait...</div>
   </div>
 
   <div class="box" id="resultBox" style="display:none;">
-    <img id="resultImg" alt="Result">
+    <img id="resultImg" class="preview checkerboard">
     <br>
     <button id="downloadBtn">Download</button>
   </div>
@@ -46,8 +55,12 @@
 
 <script>
   const fileInput = document.getElementById("fileInput");
+  const previewImg = document.getElementById("previewImg");
   const removeBtn = document.getElementById("removeBtn");
   const status = document.getElementById("status");
+  const scissors = document.getElementById("scissors");
+  const progressWrap = document.getElementById("progressWrap");
+  const progressBar = document.getElementById("progressBar");
   const resultBox = document.getElementById("resultBox");
   const resultImg = document.getElementById("resultImg");
   const downloadBtn = document.getElementById("downloadBtn");
@@ -61,7 +74,7 @@
       const mod = await import("https://esm.sh/@imgly/background-removal@1.5.5");
       removeBackgroundFn = mod.removeBackground;
       fileInput.disabled = false;
-      status.textContent = "Ready";
+      status.textContent = "Ready. Choose a photo.";
     } catch (err) {
       status.textContent = "Load error: " + err.message;
     }
@@ -70,23 +83,42 @@
 
   fileInput.addEventListener("change", (e) => {
     selectedFile = e.target.files[0];
+    if (selectedFile) {
+      previewImg.src = URL.createObjectURL(selectedFile);
+      previewImg.style.display = "inline-block";
+    }
     removeBtn.disabled = !selectedFile;
     resultBox.style.display = "none";
+    status.textContent = "Ready to remove background.";
+    progressWrap.style.display = "none";
+    progressBar.style.width = "0%";
   });
 
   removeBtn.addEventListener("click", async () => {
     if (!selectedFile || !removeBackgroundFn) return;
     removeBtn.disabled = true;
-    status.textContent = "Processing...";
+    scissors.style.display = "block";
+    progressWrap.style.display = "block";
+    progressBar.style.width = "0%";
+    status.textContent = "Removing background... 0%";
+
     try {
-      resultBlob = await removeBackgroundFn(selectedFile);
+      resultBlob = await removeBackgroundFn(selectedFile, {
+        progress: (key, current, total) => {
+          const pct = Math.round((current / total) * 100);
+          progressBar.style.width = pct + "%";
+          status.textContent = "Removing background... " + pct + "%";
+        }
+      });
       const url = URL.createObjectURL(resultBlob);
       resultImg.src = url;
       resultBox.style.display = "block";
       status.textContent = "Done";
+      progressBar.style.width = "100%";
     } catch (err) {
       status.textContent = "Error: " + err.message;
     }
+    scissors.style.display = "none";
     removeBtn.disabled = false;
   });
 
