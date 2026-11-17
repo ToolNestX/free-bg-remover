@@ -6,8 +6,9 @@
 <title>Free BG Remover</title>
 <style>
   body { margin:0; font-family: Arial, sans-serif; background:#f3f4f6; color:#111827; }
-  header { background:#dc2626; padding:16px; text-align:center; }
-  header h1 { color:#fff; font-size:22px; margin:0; font-weight:bold; }
+  header { background:#dc2626; padding:14px 16px; display:flex; align-items:center; justify-content:center; position:relative; }
+  .logo-mark { position:absolute; left:16px; top:50%; transform:translateY(-50%); font-size:22px; }
+  header h1 { color:#fff; font-size:20px; margin:0; font-weight:bold; }
   .container { max-width:500px; margin:20px auto; padding:16px; }
   .box { background:#fff; border-radius:12px; padding:20px; text-align:center; box-shadow:0 1px 4px rgba(0,0,0,0.1); margin-bottom:16px; }
   input[type=file] { margin:16px 0; }
@@ -15,20 +16,23 @@
   button:disabled { background:#9ca3af; }
   img { max-width:100%; border-radius:8px; margin-top:12px; background:
     repeating-conic-gradient(#e5e7eb 0% 25%, #ffffff 0% 50%) 50% / 20px 20px; }
-  #status { margin-top:10px; font-size:14px; color:#6b7280; }
+  #status { margin-top:10px; font-size:14px; color:#6b7280; word-break:break-word; }
+  footer { text-align:center; padding:16px; font-size:13px; color:#6b7280; }
 </style>
 </head>
 <body>
 
-<header><h1>Free BG Remover</h1></header>
+<header>
+  <span class="logo-mark">👑</span>
+  <h1>Free BG Remover</h1>
+</header>
 
 <div class="container">
   <div class="box">
-    <p>Koi bhi photo upload karo, background hata do — bilkul free.</p>
-    <input type="file" id="fileInput" accept="image/*">
+    <input type="file" id="fileInput" accept="image/*" disabled>
     <br>
     <button id="removeBtn" disabled>Remove Background</button>
-    <div id="status"></div>
+    <div id="status">Loading, please wait...</div>
   </div>
 
   <div class="box" id="resultBox" style="display:none;">
@@ -38,9 +42,9 @@
   </div>
 </div>
 
-<script type="module">
-  import { removeBackground } from "https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.5/dist/browser.mjs";
+<footer>Created by Usman WaQif</footer>
 
+<script>
   const fileInput = document.getElementById("fileInput");
   const removeBtn = document.getElementById("removeBtn");
   const status = document.getElementById("status");
@@ -50,24 +54,36 @@
 
   let selectedFile = null;
   let resultBlob = null;
+  let removeBackgroundFn = null;
+
+  async function loadLibrary() {
+    try {
+      const mod = await import("https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.5/dist/browser.mjs");
+      removeBackgroundFn = mod.removeBackground;
+      fileInput.disabled = false;
+      status.textContent = "Ready";
+    } catch (err) {
+      status.textContent = "Load error: " + err.message;
+    }
+  }
+  loadLibrary();
 
   fileInput.addEventListener("change", (e) => {
     selectedFile = e.target.files[0];
     removeBtn.disabled = !selectedFile;
-    status.textContent = "";
     resultBox.style.display = "none";
   });
 
   removeBtn.addEventListener("click", async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || !removeBackgroundFn) return;
     removeBtn.disabled = true;
-    status.textContent = "Processing... pehli dafa thoda time lagega.";
+    status.textContent = "Processing...";
     try {
-      resultBlob = await removeBackground(selectedFile);
+      resultBlob = await removeBackgroundFn(selectedFile);
       const url = URL.createObjectURL(resultBlob);
       resultImg.src = url;
       resultBox.style.display = "block";
-      status.textContent = "Done!";
+      status.textContent = "Done";
     } catch (err) {
       status.textContent = "Error: " + err.message;
     }
